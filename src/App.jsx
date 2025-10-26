@@ -28,14 +28,19 @@ function App() {
   return (
       <Routes>
         
-        {/* Rutas Públicas (FUERA DEL LAYOUT) */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/registrar" element={<Registrar />} />
+        {/* --- MODIFICADO --- */}
+        {/* Ya NO hay rutas públicas fuera del Layout */}
         
-        {/* Rutas Principales (DENTRO DEL LAYOUT) */}
+        {/* Rutas Principales (TODAS DENTRO DEL LAYOUT) */}
         <Route path="/" element={<Layout />}>
           
+          {/* Página de Inicio */}
           <Route index element={<Inicio />} />
+          
+          {/* NUEVO: Rutas de Login y Registro (Ahora dentro del Layout) */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/registrar" element={<Registrar />} />
+          {/* --- Fin de rutas movidas --- */}
           
           {/* 1. Detalle de la cancha */}
           <Route path="/cancha/:id" element={<DetalleCancha />} /> 
