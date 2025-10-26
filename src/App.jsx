@@ -9,12 +9,12 @@ import Login from './pages/Login';
 import Registrar from './pages/Registrar';
 // Importaciones de Perfil (Asegúrate que las rutas existan)
 import ProfileLayout from './components/ProfileLayout';
-import DeleteAccount from './pages/profile/DeleteAccount';
-import Favorites from './pages/profile/Favorites';
-import MyReviews from './pages/profile/MyReviews';
-import PersonalData from './pages/profile/PersonalData';
-import Reservations from './pages/profile/Reservations';
-import Security from './pages/profile/Security';
+import DeleteAccount from './pages/Profile/DeleteAccount';
+import Favorites from './pages/Profile/Favorites';
+import MyReviews from './pages/Profile/MyReviews';
+import PersonalData from './pages/Profile/PersonalData';
+import Reservations from './pages/Profile/Reservations';
+import Security from './pages/Profile/Security';
 
 // 🎯 IMPORTACIONES FINALES DESDE LA SUB-CARPETA DetalleCancha
 import ComprobantePago from './pages/DetalleCancha/ComprobantePago';
