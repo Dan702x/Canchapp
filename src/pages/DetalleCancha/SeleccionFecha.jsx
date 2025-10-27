@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { canchasData } from '../../data/canchasData';
 
 // Función para obtener el primer día del mes dado (0 = enero, 11 = diciembre)
-// Esto es esencial para saber dónde empezar a dibujar los días en la cuadrícula.
 const getStartDay = (year, month) => new Date(year, month, 1).getDay();
 
 const SeleccionFecha = () => {
@@ -12,62 +11,52 @@ const SeleccionFecha = () => {
     
     const cancha = canchasData.find(c => c.id === parseInt(id));
     
-    // 🎯 CAMBIO 1: Estado para la fecha seleccionada (el día que se marca en azul)
-    // Inicializado en 26, ya que el calendario inicial es octubre de 2025 (índice 9)
+    // Estado para la fecha seleccionada
     const [selectedDayNumber, setSelectedDayNumber] = useState(26);
 
-    // 🎯 NUEVO ESTADO: Controla el mes y año que se está viendo.
-    // Inicializamos en la fecha actual (Octubre 2025)
-    const [currentDate, setCurrentDate] = useState(new Date(2025, 9, 1)); // 9 es Octubre
+    // Estado para el mes y año actual
+    const [currentDate, setCurrentDate] = useState(new Date(2025, 9, 1)); // Octubre 2025
 
     const [confirming, setConfirming] = useState(false);
 
     // --- Lógica del Calendario Dinámico ---
-
-    // Obtener el año y el mes actuales del estado
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
-
-    // Días de un mes específico (ej: Octubre tiene 31)
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    // 0 = Domingo, 1 = Lunes, ... (Necesitamos compensar para que Lu sea el inicio de la cuadrícula)
-    const firstDayIndex = (getStartDay(currentYear, currentMonth) + 6) % 7; // Ajuste para que Lunes sea 0
+    const firstDayIndex = (getStartDay(currentYear, currentMonth) + 6) % 7; // Ajuste Lunes = 0
 
-    // Función para cambiar de mes (anterior/siguiente)
     const changeMonth = (delta) => {
         const newMonth = currentMonth + delta;
         setCurrentDate(new Date(currentYear, newMonth, 1));
-        setSelectedDayNumber(null); // Deseleccionar día al cambiar de mes
+        setSelectedDayNumber(null); 
     };
 
     // --- Lógica de Reserva y Redirección ---
-
     const handleConfirmDate = () => {
         if (!selectedDayNumber) {
-            alert('Por favor, selecciona una fecha.');
+            // En una app real, mostrarías un mensaje más amigable
+            console.error('Por favor, selecciona una fecha.'); 
             return;
         }
         setConfirming(true);
         
-        // Creamos la fecha final con el mes/año actual y el día seleccionado.
         const dateToPass = new Date(currentYear, currentMonth, selectedDayNumber);
 
         navigate(`/cancha/${id}/reservar/horario`, { 
             state: { fecha: dateToPass.toISOString() } 
         });
 
-        setTimeout(() => setConfirming(false), 500); 
+        // Simula tiempo de carga o transición
+        // setTimeout(() => setConfirming(false), 500); // Comentado, la navegación es inmediata
     };
 
-    // Helper para formatear la fecha seleccionada para la visualización
     const formattedDate = selectedDayNumber
         ? new Date(currentYear, currentMonth, selectedDayNumber).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
-        : 'Selecciona un día'; // Texto si no hay día seleccionado
+        : 'Selecciona un día'; 
 
     // Datos simulados (solo para marcar algunos días disponibles)
-    const simulatedDates = [1, 2, 3, 14, 19, 27];
+    const simulatedDates = [1, 2, 3, 14, 19, 27]; // Ejemplo
     const monthNames = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
-
 
     if (!cancha) {
         return (
@@ -79,76 +68,81 @@ const SeleccionFecha = () => {
     }
     
     return (
-        <div className="bg-gray-50">
+        <div className="bg-gray-50 min-h-screen"> {/* Asegura fondo gris */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 
-                {/* Migas de pan */}
-                {/* ... (código de migas de pan) ... */}
+                {/* Migas de pan (simplificado) */}
+                 <div className="text-sm text-gray-500 mb-4">
+                   <Link to="/" className="hover:underline">Inicio</Link>
+                   <span className="mx-2">&gt;</span>
+                   <Link to={`/cancha/${id}`} className="hover:underline">{cancha.nombre}</Link>
+                   <span className="mx-2">&gt;</span>
+                   <span className="font-semibold text-gray-700">Seleccionar Fecha</span>
+                 </div>
                 
-                <div className="bg-white p-8 rounded-lg shadow-xl max-w-2xl mx-auto">
-                    <div className="flex justify-between items-center mb-6 border-b pb-4">
-                        <h1 className="text-3xl font-bold text-gray-900">Reservar</h1>
-                        <button 
-                            onClick={() => alert("Función final de reserva")}
-                            className="bg-green-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-green-700 transition duration-300"
-                        >
-                            Reservar
-                        </button>
-                    </div>
+                {/* MODIFICADO: Padding responsivo */}
+                <div className="bg-white px-4 py-8 sm:p-8 rounded-lg shadow-xl max-w-lg mx-auto"> 
+                    {/* MODIFICADO: Quitada la cabecera con botón Reservar */}
+                     <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-6">Selecciona la Fecha</h1>
 
-                    {/* -------------------- FECHA SELECCIONADA -------------------- */}
+                    {/* Fecha seleccionada */}
                     <div className="text-center mb-6">
-                        <p className="text-lg font-medium text-gray-700">
+                        <p className="text-base sm:text-lg font-medium text-gray-700">
                             Fecha seleccionada: <span className="font-bold text-blue-600">
                                 {formattedDate}
                             </span>
                         </p>
                     </div>
 
-                    {/* -------------------- CALENDARIO DINÁMICO -------------------- */}
-                    <div className="calendar-sim mb-8 p-4 border rounded-lg bg-gray-50">
-                        <div className="flex justify-between items-center text-lg font-bold text-gray-800 mb-4">
-                            {/* Botón Anterior */}
+                    {/* Calendario */}
+                    {/* MODIFICADO: Padding responsivo */}
+                    <div className="calendar-sim mb-8 p-2 sm:p-4 border rounded-lg bg-gray-50">
+                        <div className="flex justify-between items-center text-base sm:text-lg font-bold text-gray-800 mb-4">
+                            {/* MODIFICADO: Botones más compactos en móvil */}
                             <button 
                                 onClick={() => changeMonth(-1)}
-                                className="text-blue-600 hover:text-blue-800 flex items-center"
+                                className="text-blue-600 hover:text-blue-800 flex items-center p-1 sm:p-2 rounded hover:bg-gray-100" // Padding añadido
                             >
-                                &lt; Anterior
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                <span className="hidden sm:inline">Anterior</span> {/* Oculta texto en móvil */}
                             </button>
 
-                            {/* Mes y Año Actual */}
-                            <span className='capitalize'>
+                            <span className='capitalize text-center'> {/* Centrado */}
                                 {monthNames[currentMonth]} {currentYear}
                             </span>
 
-                            {/* Botón Siguiente */}
+                            {/* MODIFICADO: Botones más compactos en móvil */}
                             <button 
                                 onClick={() => changeMonth(1)}
-                                className="text-blue-600 hover:text-blue-800 flex items-center"
+                                className="text-blue-600 hover:text-blue-800 flex items-center p-1 sm:p-2 rounded hover:bg-gray-100" // Padding añadido
                             >
-                                Siguiente &gt;
+                                 <span className="hidden sm:inline">Siguiente</span> {/* Oculta texto en móvil */}
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                             </button>
                         </div>
                         
-                        {/* Días de la semana */}
-                        <div className="grid grid-cols-7 text-center text-sm text-gray-500 mb-2">
+                        {/* Días semana */}
+                        <div className="grid grid-cols-7 text-center text-xs sm:text-sm text-gray-500 mb-2">
                             {['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa', 'Do'].map(day => <span key={day}>{day}</span>)}
                         </div>
                         
-                        {/* Días del mes (Generación Dinámica) */}
-                        <div className="grid grid-cols-7 text-center gap-2">
+                        {/* Días mes */}
+                        {/* MODIFICADO: Gap responsivo */}
+                        <div className="grid grid-cols-7 text-center gap-1 sm:gap-2"> 
                             
-                            {/* Relleno: Días vacíos al inicio del mes (Lunes = 0, Domingo = 6) */}
-                            {[...Array(firstDayIndex)].map((_, i) => <span key={`empty-${i}`} className="w-10 h-10"></span>)}
+                            {/* Relleno */}
+                             {/* MODIFICADO: Tamaño responsivo */}
+                            {[...Array(firstDayIndex)].map((_, i) => <span key={`empty-${i}`} className="w-8 h-8 md:w-10 md:h-10"></span>)}
 
-                            {/* Días del Mes */}
+                            {/* Días */}
                             {[...Array(daysInMonth)].map((_, i) => {
                                 const day = i + 1;
                                 const isAvailable = simulatedDates.includes(day);
                                 const isSelected = selectedDayNumber === day;
-                                const isMaintenance = day === 3; 
+                                const isMaintenance = day === 3; // Ejemplo
                                 
-                                let classes = "w-10 h-10 flex items-center justify-center rounded-full text-sm font-semibold cursor-pointer";
+                                // MODIFICADO: Clases de tamaño y fuente responsivas
+                                let classes = "flex items-center justify-center rounded-full cursor-pointer w-8 h-8 text-xs md:w-10 md:h-10 md:text-sm font-semibold"; 
 
                                 if (isMaintenance) {
                                     classes += " bg-gray-300 text-gray-600 cursor-not-allowed line-through relative";
@@ -157,39 +151,49 @@ const SeleccionFecha = () => {
                                 } else if (isAvailable) {
                                     classes += " bg-green-200 text-green-700 hover:bg-green-300";
                                 } else {
-                                    classes += " text-gray-400";
+                                    classes += " text-gray-400 cursor-not-allowed"; // No clickeable si no está disponible
                                 }
 
                                 return (
-                                    <span 
+                                    <button // Cambiado a button para mejor accesibilidad
                                         key={day} 
+                                        type="button" // Previene envío de formulario si estuviera dentro de uno
                                         className={classes}
-                                        onClick={isMaintenance ? null : () => setSelectedDayNumber(day)}
+                                        onClick={isMaintenance || !isAvailable ? null : () => setSelectedDayNumber(day)} // Solo permite click si está disponible
+                                        disabled={isMaintenance || !isAvailable} // Deshabilita si no está disponible
                                     >
                                         {day}
-                                    </span>
+                                    </button>
                                 );
                             })}
                         </div>
                         
-                        <p className="text-sm text-red-500 mt-4 text-right">Fecha no disponible, elige otra</p>
+                        {/* Leyenda (Opcional, pero útil) */}
+                        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-4 text-xs">
+                            <div className="flex items-center"><span className="w-3 h-3 bg-green-200 rounded-full mr-1.5"></span>Disponible</div>
+                            <div className="flex items-center"><span className="w-3 h-3 bg-blue-600 rounded-full mr-1.5"></span>Seleccionado</div>
+                             <div className="flex items-center"><span className="w-3 h-3 bg-gray-300 rounded-full mr-1.5 line-through"></span>Mantenimiento</div>
+                            <div className="flex items-center text-gray-400"><span>•</span> No disponible</div>
+                        </div>
                     </div>
                     
-                    {/* -------------------- BOTÓN CONFIRMAR FECHA -------------------- */}
-                    <div className="text-center mb-8">
+                    {/* Botón Confirmar Fecha */}
+                    <div className="text-center mt-8"> {/* Añadido margen superior */}
                         <button 
                             onClick={handleConfirmDate}
-                            disabled={confirming || !selectedDayNumber} // Deshabilitar si no hay día seleccionado
-                            className="bg-blue-600 text-white font-semibold py-2 px-8 rounded-lg hover:bg-blue-700 transition duration-300 disabled:bg-gray-400"
+                            disabled={confirming || !selectedDayNumber} 
+                            className="bg-blue-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-blue-700 transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto" // Ancho completo en móvil
                         >
-                            {confirming ? 'Confirmando...' : 'Confirmar Fecha'}
+                            {confirming ? 'Cargando...' : 'Confirmar Fecha y Ver Horarios'}
                         </button>
                     </div>
                     
-                    {/* Sección de horarios vacía como en tu mockup */}
-                    <h3 className="text-xl font-bold text-gray-800 mb-4">Horarios disponibles</h3>
-                    <div className="text-center py-4 text-gray-500 italic">
-                        Selecciona una fecha para ver los horarios.
+                    {/* Sección horarios (Simplificada como placeholder) */}
+                    <div className="mt-8 pt-6 border-t border-gray-200">
+                         <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">Horarios disponibles</h3>
+                         <div className="text-center py-4 text-gray-500 italic">
+                             Selecciona una fecha disponible para ver los horarios.
+                         </div>
                     </div>
                 </div>
             </div>
