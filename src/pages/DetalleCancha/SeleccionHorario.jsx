@@ -1,32 +1,35 @@
+// pages/DetalleCancha/SeleccionHorario.jsx
+
 import { useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { canchasData } from '../../data/canchasData';
 
-// Función para generar franjas de 30 minutos entre 9:00 y 16:00
+// Función para generar slots SOLO en horas completas (ej: 09:00, 10:00)
 const generateTimeSlots = () => {
     const slots = [];
-    for (let h = 9; h <= 15; h++) {
+    for (let h = 9; h <= 22; h++) { // Genera hasta 22:00 (para terminar a las 23:00)
         slots.push(`${h.toString().padStart(2, '0')}:00`);
-        slots.push(`${h.toString().padStart(2, '0')}:30`);
     }
-    // Agregar el slot final de las 16:00
-    slots.push('16:00'); 
+    slots.push('23:00'); // Hora final de cierre
     return slots;
 };
 
-// Datos de disponibilidad simulados (para el mockup)
+// Datos de disponibilidad simulados. Cada hora es un slot de 1 hora.
 const mockAvailability = {
-    '09:00': 'available',
-    '09:30': 'available',
-    '10:00': 'occupied',
-    '10:30': 'available',
+    '09:00': 'available', // <- ANTES DE OCUPADO (DEBE SER SELECCIONABLE)
+    '10:00': 'occupied',  // <- OCUPADO
     '11:00': 'available',
-    '11:30': 'available',
-    '12:00': 'occupied',
-    '12:30': 'available',
-    '13:00': 'occupied',
-    '13:30': 'occupied',
+    '12:00': 'occupied',  // <- OCUPADO
+    '13:00': 'available', // <- ANTES DE OCUPADO (DEBE SER SELECCIONABLE)
     '14:00': 'available',
+    '15:00': 'available',
+    '16:00': 'available',
+    '17:00': 'available',
+    '18:00': 'available',
+    '19:00': 'available',
+    '20:00': 'available',
+    '21:00': 'available',
+    '22:00': 'available', // Última hora de inicio
 };
 
 const SeleccionHorario = () => {
@@ -34,18 +37,13 @@ const SeleccionHorario = () => {
     const navigate = useNavigate();
     const location = useLocation();
     
-    // Recuperar la fecha seleccionada del estado de la navegación (Paso 1)
     const selectedDateISO = location.state?.fecha;
     const selectedDate = selectedDateISO ? new Date(selectedDateISO) : null;
     
-    // Obtener datos de la cancha
     const cancha = canchasData.find(c => c.id === parseInt(id));
     
-    // Estado para el inicio del bloque seleccionado
     const [startSlot, setStartSlot] = useState(null);
-    // Estado para el fin del bloque seleccionado
     const [endSlot, setEndSlot] = useState(null);
-    // Estado para mostrar mensajes de error
     const [message, setMessage] = useState(null);
 
     const allTimeSlots = generateTimeSlots();
@@ -64,192 +62,217 @@ const SeleccionHorario = () => {
     // Helper para obtener el índice de un slot
     const getSlotIndex = (time) => allTimeSlots.indexOf(time);
 
-    // Lógica para manejar el clic en un bloque de tiempo
+    // LÓGICA DE SELECCIÓN DE RANGO (MÍNIMO 1 HORA)
     const handleSlotClick = (slot) => {
         setMessage(null);
         
-        const slotStatus = mockAvailability[slot];
-        if (slotStatus === 'occupied') {
-            setMessage({ type: 'error', text: 'Horario ocupado, selecciona otro' });
+        const clickedIdx = getSlotIndex(slot);
+        const nextSlot = allTimeSlots[clickedIdx + 1]; // La hora siguiente
+        
+        // CASO 1: El slot clicado es la hora final (23:00) o está ocupado
+        if (mockAvailability[slot] === 'occupied' || !nextSlot) {
+            setMessage({ type: 'error', text: 'Esta hora no está disponible.' });
             setStartSlot(null);
             setEndSlot(null);
             return;
         }
 
-        // Si no hay inicio de slot seleccionado, este es el inicio
-        if (!startSlot) {
-            setStartSlot(slot);
-            setEndSlot(null);
-            return;
-        }
-
-        // Si el clic es el mismo slot, lo deseleccionamos
+        // CASO 2: Deseleccionar si el slot clicado ya es el inicio
         if (startSlot === slot) {
             setStartSlot(null);
             setEndSlot(null);
             return;
         }
+
+        // CASO 3: Iniciar un nuevo bloque (Forzando el mínimo de 1 hora)
+        if (!startSlot) {
+            setStartSlot(slot);
+            setEndSlot(nextSlot); // Forzar 1 hora: 09:00 a 10:00
+            return;
+        }
         
-        // --- Lógica de Selección de Bloque (Mínimo 1 hora) ---
+        // CASO 4: Extender o Reducir el Bloque (Manejo de Rango)
 
         const startIdx = getSlotIndex(startSlot);
-        const clickedIdx = getSlotIndex(slot);
+        const endReferenceIdx = clickedIdx;
         
-        // Ordena los índices para saber cuál es el inicio y cuál es el fin real
-        const finalStartIdx = Math.min(startIdx, clickedIdx);
-        const finalEndIdx = Math.max(startIdx, clickedIdx);
+        // Calcular el rango del nuevo bloque
+        const newStartIdx = Math.min(startIdx, endReferenceIdx);
+        const newEndIdx = Math.max(startIdx, endReferenceIdx);
 
-        // Calcula la duración del bloque seleccionado (2 slots = 1 hora)
-        const durationSlots = finalEndIdx - finalStartIdx + 1;
-
-        // Comprueba si el bloque seleccionado contiene algún slot ocupado
-        for (let i = finalStartIdx; i <= finalEndIdx; i++) {
+        // El fin de la reserva es el slot *siguiente* al último slot seleccionado
+        const reservationEndSlot = allTimeSlots[newEndIdx + 1]; 
+        
+        // Si el final de la reserva cae en 23:00 y es el último slot, es válido.
+        if (!reservationEndSlot) {
+             setMessage({ type: 'error', text: 'El rango seleccionado excede la hora de cierre (23:00).' });
+             return;
+        }
+        
+        // Verificación de slots ocupados dentro del nuevo rango
+        for (let i = newStartIdx; i <= newEndIdx; i++) {
             if (mockAvailability[allTimeSlots[i]] === 'occupied') {
-                setMessage({ type: 'error', text: 'El bloque seleccionado incluye un horario ocupado. Elige otro.' });
+                setMessage({ type: 'error', text: 'El rango seleccionado incluye horarios ocupados.' });
                 setStartSlot(null);
                 setEndSlot(null);
                 return;
             }
         }
-
-        // Asignamos el inicio y fin
-        setStartSlot(allTimeSlots[finalStartIdx]);
-        setEndSlot(allTimeSlots[finalEndIdx]);
-
-        // Verificación de Bloque Mínimo (Mínimo de 1 hora = 2 slots de 30 min)
-        // Si solo se seleccionó un slot (duración 1), verificamos si es válido (requiere 1 hora)
-        if (durationSlots < 2) {
-             setMessage({ type: 'error', text: 'El bloque mínimo de reserva es de 1 hora (selecciona 2 bloques de 30min).' });
-             setStartSlot(null);
-             setEndSlot(null);
-             return;
-        }
-    };
-
-    // Helper para determinar el estilo del slot
-    const getSlotClass = (slot) => {
-        const status = mockAvailability[slot] || 'unavailable';
-        let classes = "py-2 px-3 rounded text-sm font-medium transition-colors cursor-pointer ";
         
-        // Lógica para determinar si el slot está dentro del bloque seleccionado
-        const isWithinSelection = startSlot && endSlot && getSlotIndex(slot) >= getSlotIndex(startSlot) && getSlotIndex(slot) <= getSlotIndex(endSlot);
-        
-        if (isWithinSelection) {
-            classes += "bg-green-500 text-white shadow-lg ring-2 ring-green-600"; // Bloque seleccionado
-        } else if (status === 'available') {
-            classes += "bg-green-100 text-green-700 hover:bg-green-200 border border-green-200"; // Disponible
-        } else if (status === 'occupied') {
-            classes += "bg-red-100 text-red-700 cursor-not-allowed line-through border border-red-200"; // Ocupado
-        } else {
-            classes += "bg-gray-100 text-gray-500 cursor-not-allowed border border-gray-200"; // No disponible/fuera de rango
-        }
-        return classes;
-    };
-
-    // Función para avanzar a la CONFIRMACIÓN FINAL
-    const handleConfirmReservation = () => {
-        if (!startSlot || !endSlot) {
+        // Verificación de Bloque Mínimo (Mínimo 1 hora).
+        const newDurationSlots = newEndIdx - newStartIdx + 1;
+        if (newDurationSlots < 1) { // 1 slot = 1 hora
             setMessage({ type: 'error', text: 'Debes seleccionar un bloque de al menos 1 hora.' });
+            setStartSlot(null);
+            setEndSlot(null);
             return;
         }
-        
-        // Navegación al Mockup de Confirmación Final
-        navigate(`/reservar/confirmacion-final`, { 
-            state: { 
-                canchaNombre: cancha.nombre,
-                fecha: selectedDate.toLocaleDateString('es-ES'),
-                hora: `${startSlot} - ${endSlot}`,
-                monto: 80.00 // Monto simulado
-            }
-        });
+
+        // El bloque es válido, lo asignamos:
+        setStartSlot(allTimeSlots[newStartIdx]);
+        setEndSlot(reservationEndSlot);
     };
+    
+    // Helper para determinar el estilo del slot
+    const getSlotClass = (slot) => {
+        const slotIdx = getSlotIndex(slot);
+        
+        // El último slot (23:00) se oculta en la lista de botones
+        if (slotIdx === allTimeSlots.length - 1) {
+            return "hidden"; 
+        }
 
-    // Formatear la fecha seleccionada
-    const formattedDate = selectedDate.toLocaleDateString('es-ES', { 
-        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' 
-    });
+        const status = mockAvailability[slot] || 'unavailable';
+        let classes = "py-2 px-3 rounded text-sm font-medium transition-colors cursor-pointer ";
+        
+        const startIdx = startSlot ? getSlotIndex(startSlot) : -1;
+        const endIdx = endSlot ? getSlotIndex(endSlot) : -1;
+        
+        // La selección incluye el slot si su índice es >= al inicio y < al fin
+        const isWithinSelection = startSlot && endSlot && slotIdx >= startIdx && slotIdx < endIdx;
+
+        if (status === 'occupied') {
+            classes += "bg-red-500 text-white cursor-not-allowed line-through shadow-md"; 
+        } else if (isWithinSelection) {
+            classes += "bg-green-600 text-white shadow-lg ring-2 ring-green-700"; 
+        } else if (status === 'available') {
+            classes += "bg-green-100 text-green-700 hover:bg-green-200 border border-green-200"; 
+        } else {
+            classes += "bg-gray-100 text-gray-500 cursor-not-allowed border border-gray-200"; 
+        }
+        return classes;
+    };
+
+    // Función para avanzar a la CONFIRMACIÓN FINAL
+    const handleConfirmReservation = () => {
+        if (!startSlot || !endSlot) {
+            setMessage({ type: 'error', text: 'Debes seleccionar un bloque de 1 hora.' });
+            return;
+        }
+        
+        // Calcular duración para pasar el monto de pago correcto
+        const startIdx = getSlotIndex(startSlot);
+        const endIdx = getSlotIndex(endSlot);
+        const durationSlots = endIdx - startIdx;
+        
+        if (durationSlots < 1) {
+             setMessage({ type: 'error', text: 'El bloque seleccionado es menor a 1 hora.' });
+             return;
+        }
+
+        // Navegación al Mockup de Confirmación Final
+        navigate(`/reservar/confirmacion-final`, { 
+            state: { 
+                canchaNombre: cancha.nombre,
+                fecha: selectedDate.toLocaleDateString('es-ES'),
+                hora: `${startSlot} - ${endSlot}`, 
+                monto: 80.00 * durationSlots // Monto ajustado por las horas seleccionadas
+            }
+        });
+    };
+
+    // Formatear la fecha seleccionada
+    const formattedDate = selectedDate.toLocaleDateString('es-ES', { 
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' 
+    });
+
+    // Calcula los slots disponibles
+    const availableSlotCount = Object.values(mockAvailability).filter(s => s === 'available').length;
 
 
-    return (
-        <div className="bg-gray-50 min-h-screen py-12">
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-                
-                {/* Migas de pan */}
-                <div className="text-sm text-gray-500 mb-6">
-                    <Link to="/" className="hover:underline">Inicio</Link>
-                    <span className="mx-2">&gt;</span>
-                    <Link to={`/cancha/${id}`} className="hover:underline">{cancha.nombre}</Link>
-                    <span className="mx-2">&gt;</span>
-                    <span className="font-semibold text-gray-700">Seleccionar Horario</span>
-                </div>
+    return (
+        <div className="bg-gray-50 min-h-screen py-12">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                
+                {/* Migas de pan (ajustadas por brevedad) */}
+                <p className="text-sm text-gray-500 mb-6">Inicio &gt; {cancha.nombre} &gt; Seleccionar Horario</p>
 
-                <div className="bg-white p-8 rounded-lg shadow-xl">
-                    
-                    <div className="flex justify-between items-center mb-6 border-b pb-4">
-                        <h1 className="text-3xl font-bold text-gray-900">Seleccionar Hora</h1>
-                        <button 
-                            onClick={handleConfirmReservation}
-                            className="bg-green-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-green-700 transition duration-300 disabled:opacity-50"
-                            disabled={!startSlot || !endSlot}
-                        >
-                            Confirmar Reserva
-                        </button>
-                    </div>
+                <div className="bg-white p-8 rounded-lg shadow-xl">
+                    
+                    <div className="flex justify-between items-center mb-6 border-b pb-4">
+                        <h1 className="text-3xl font-bold text-gray-900">Seleccionar Hora</h1>
+                        <button 
+                            onClick={handleConfirmReservation}
+                            className="bg-green-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-green-700 transition duration-300 disabled:opacity-50"
+                            disabled={!startSlot || !endSlot}
+                        >
+                            Confirmar Reserva
+                        </button>
+                    </div>
 
-                    {/* --- Cabecera de Datos --- */}
-                    <div className="flex flex-wrap gap-4 mb-6">
-                        <span className="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">
-                            Fecha seleccionada: {formattedDate}
-                        </span>
-                        <span className="bg-purple-100 text-purple-800 text-sm font-medium px-3 py-1 rounded-full">
-                            Bloque seleccionado: {startSlot && endSlot ? `${startSlot} - ${endSlot}` : 'Min. 1h'}
-                        </span>
-                        <span className="bg-gray-100 text-gray-800 text-sm font-medium px-3 py-1 rounded-full">
-                            Slots libres: {Object.values(mockAvailability).filter(s => s === 'available').length}
-                        </span>
-                    </div>
+                    {/* --- Cabecera de Datos --- */}
+                    <div className="flex flex-wrap gap-4 mb-6">
+                        <span className="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">
+                            Fecha seleccionada: {formattedDate}
+                        </span>
+                        <span className="bg-purple-100 text-purple-800 text-sm font-medium px-3 py-1 rounded-full">
+                            Bloque seleccionado: {startSlot && endSlot ? `${startSlot} - ${endSlot}` : 'Min. 1h'}
+                        </span>
+                        <span className="bg-gray-100 text-gray-800 text-sm font-medium px-3 py-1 rounded-full">
+                            Slots libres: {availableSlotCount}
+                        </span>
+                    </div>
 
-                    {/* --- Mensajes de Error/Información --- */}
-                    {message && (
-                        <div 
-                            className={`p-4 mb-6 rounded-lg ${message.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}
-                        >
-                            {message.text}
-                        </div>
-                    )}
-                    
-                    {/* --- Leyenda --- */}
-                    <div className="text-sm text-gray-600 mb-6 border-t pt-4">
-                        Estado de horarios (<span className="text-green-600">verde = disponible</span>, <span className="text-red-600">rojo = ocupado</span>). El bloque mínimo a seleccionar es de **1 hora** (equivalente a 2 slots de 30min).
-                    </div>
+                    {/* --- Mensajes de Error/Información --- */}
+                    {message && (
+                        <div 
+                            className={`p-4 mb-6 rounded-lg ${message.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}
+                        >
+                            {message.text}
+                        </div>
+                    )}
+                    
+                    {/* --- Leyenda --- */}
+                    <div className="text-sm text-gray-600 mb-6 border-t pt-4">
+                        Estado de horarios (<span className="text-green-600">verde = disponible</span>, <span className="text-red-600">rojo = ocupado</span>). La reserva mínima es de **1 hora** (Horas completas).
+                    </div>
 
 
-                    {/* -------------------- HORARIOS (Slots) -------------------- */}
-                    <div className="flex flex-wrap gap-2 mb-8">
-                        {allTimeSlots.slice(0, -1).map(slot => ( // No mostramos el último slot (16:00) como inicio
-                            <button
-                                key={slot}
-                                onClick={() => handleSlotClick(slot)}
-                                className={getSlotClass(slot)}
-                                disabled={mockAvailability[slot] === 'occupied'}
-                            >
-                                {slot}
-                            </button>
-                        ))}
-                    </div>
-                    
-                    {/* --- Bloque Seleccionado Actual --- */}
-                     <div className="p-4 border-t mt-4 text-center">
-                        <p className="text-lg font-semibold text-gray-700">Bloque seleccionado (min. 1h):</p>
-                        <p className={`text-xl font-bold ${startSlot ? 'text-blue-600' : 'text-gray-400'}`}>
-                            {startSlot && endSlot ? `${startSlot} - ${endSlot}` : 'Selecciona un bloque en el calendario'}
-                        </p>
-                    </div>
+                    {/* -------------------- HORARIOS (Slots) -------------------- */}
+                    <div className="flex flex-wrap gap-2 mb-8">
+                        {allTimeSlots.slice(0, -1).map(slot => (
+                            <button
+                                key={slot}
+                                onClick={() => handleSlotClick(slot)}
+                                className={getSlotClass(slot)}
+                            >
+                                {slot}
+                            </button>
+                        ))}
+                    </div>
+                    
+                    {/* --- Bloque Seleccionado Actual --- */}
+                     <div className="p-4 border-t mt-4 text-center">
+                        <p className="text-lg font-semibold text-gray-700">Bloque seleccionado (1 hora):</p>
+                        <p className={`text-xl font-bold ${startSlot ? 'text-blue-600' : 'text-gray-400'}`}>
+                            {startSlot && endSlot ? `${startSlot} - ${endSlot}` : 'Selecciona una hora de inicio'}
+                        </p>
+                    </div>
 
-                </div>
-            </div>
-        </div>
-    );
+                </div>
+            </div>
+        </div>
+    );
 };
 
 export default SeleccionHorario;
